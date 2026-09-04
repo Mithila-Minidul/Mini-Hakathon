@@ -1,7 +1,7 @@
 // src/services/bookService.js
-// Frontend API wrappers for the Book Discovery module
+// Frontend API wrappers for the Book module (public discovery + admin CRUD)
 
-import { get } from './api';
+import { get, post, put, del } from './api';
 
 const BASE = '/books';
 
@@ -39,3 +39,18 @@ export const fetchCategories = () => get(`${BASE}/categories`);
  * GET /api/books/:id
  */
 export const fetchBookById = (id) => get(`${BASE}/${id}`);
+
+/**
+ * POST /api/books
+ */
+export const createBook = (data) => post(BASE, data);
+
+/**
+ * PUT /api/books/:id
+ */
+export const updateBook = (id, data) => put(`${BASE}/${id}`, data);
+
+/**
+ * DELETE /api/books/:id
+ */
+export const deleteBook = (id) => del(`${BASE}/${id}`);

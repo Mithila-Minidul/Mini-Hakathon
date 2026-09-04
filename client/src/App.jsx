@@ -23,6 +23,12 @@ import CustomerEditPage   from './pages/customers/CustomerEditPage';
 import BooksPage      from './pages/books/BooksPage';
 import BookDetailPage from './pages/books/BookDetailPage';
 
+// Pages — Admin Book Management
+import AdminBooksPage      from './pages/admin/books/AdminBooksPage';
+import AdminBookNewPage    from './pages/admin/books/AdminBookNewPage';
+import AdminBookDetailPage from './pages/admin/books/AdminBookDetailPage';
+import AdminBookEditPage   from './pages/admin/books/AdminBookEditPage';
+
 const App = () => {
   return (
     <BrowserRouter>
@@ -57,9 +63,15 @@ const App = () => {
             element={<ProtectedRoute><CustomerEditPage /></ProtectedRoute>}
           />
 
-          {/* ── Public — Books ── */}
+          {/* ── Public — Books (discovery) ── */}
           <Route path={ROUTES.BOOKS}       element={<BooksPage />} />
           <Route path={ROUTES.BOOK_DETAIL} element={<BookDetailPage />} />
+
+          {/* ── Admin — Book Management ── */}
+          <Route path={ROUTES.ADMIN_BOOKS}       element={<AdminBooksPage />} />
+          <Route path={ROUTES.ADMIN_BOOK_NEW}    element={<AdminBookNewPage />} />
+          <Route path={ROUTES.ADMIN_BOOK_DETAIL} element={<AdminBookDetailPage />} />
+          <Route path={ROUTES.ADMIN_BOOK_EDIT}   element={<AdminBookEditPage />} />
 
           {/* ── 404 ── */}
           <Route path={ROUTES.NOT_FOUND} element={<NotFoundPage />} />
@@ -70,4 +82,3 @@ const App = () => {
 };
 
 export default App;
-

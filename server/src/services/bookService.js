@@ -1,11 +1,10 @@
 // src/services/bookService.js
-// Business logic for the Book Discovery module (read-only public API)
-// Admin CRUD would live in a separate admin service — not implemented here.
+// Business logic for the Book module (CRUD + search/filter)
 
 const mongoose = require('mongoose');
 const Book = require('../models/Book');
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const createError = (message, statusCode = 400) => {
   const err = new Error(message);
@@ -19,14 +18,14 @@ const assertValidObjectId = (id) => {
   }
 };
 
-// ─── Public: Get all books with search + filter + pagination ─────────────────
+// ─── GET all books: search + filter + pagination ─────────────────────────────
 
 /**
  * @param {object} options
  * @param {string}  options.search    - Full-text search against title & author
  * @param {string}  options.author    - Case-insensitive author filter
  * @param {string}  options.category  - Exact category filter
- * @param {boolean} options.available - Filter by stock > 0
+ * @param {string}  options.available - 'true' | 'false' availability filter
  * @param {string}  options.sortBy    - Field to sort by (default: 'createdAt')
  * @param {string}  options.order     - 'asc' | 'desc' (default: 'desc')
  * @param {number}  options.page      - Page number (default: 1)
@@ -59,11 +58,11 @@ const getBooks = async ({
     filter.category = category.trim();
   }
 
-  // Availability
+  // Availability filter (stored boolean field)
   if (available === true || available === 'true') {
-    filter.stock = { $gt: 0 };
+    filter.available = true;
   } else if (available === false || available === 'false') {
-    filter.stock = 0;
+    filter.available = false;
   }
 
   const sortOrder = order === 'asc' ? 1 : -1;
@@ -71,7 +70,7 @@ const getBooks = async ({
     ? { score: { $meta: 'textScore' }, [sortBy]: sortOrder }
     : { [sortBy]: sortOrder };
 
-  const pageNum  = Math.max(1, parseInt(page, 10) || 1);
+  const pageNum  = Math.max(1, parseInt(page, 10)  || 1);
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
   const skip     = (pageNum - 1) * limitNum;
 
@@ -90,7 +89,7 @@ const getBooks = async ({
   };
 };
 
-// ─── Public: Get single book by ID ────────────────────────────────────────────
+// ─── GET single book by ID ────────────────────────────────────────────────────
 
 const getBookById = async (id) => {
   assertValidObjectId(id);
@@ -99,11 +98,88 @@ const getBookById = async (id) => {
   return book;
 };
 
-// ─── Public: Get all unique categories ────────────────────────────────────────
+// ─── GET distinct categories ─────────────────────────────────────────────────
 
 const getCategories = async () => {
   const cats = await Book.distinct('category');
   return cats.sort();
 };
 
-module.exports = { getBooks, getBookById, getCategories };
+// ─── CREATE a book ────────────────────────────────────────────────────────────
+
+/**
+ * @param {object} data - Book fields from request body
+ */
+const createBook = async (data) => {
+  const { title, author, category, price, stock, description, coverImage } = data;
+
+  // Manual guard (Mongoose validation also runs, but this gives a cleaner msg)
+  if (!title || !author || !category || price === undefined) {
+    throw createError('title, author, category, and price are required', 400);
+  }
+
+  if (typeof price !== 'number' || price <= 0) {
+    throw createError('Price must be a number greater than 0', 400);
+  }
+
+  if (stock !== undefined && (typeof stock !== 'number' || stock < 0)) {
+    throw createError('Stock must be 0 or greater', 400);
+  }
+
+  const book = await Book.create({ title, author, category, price, stock, description, coverImage });
+  return book;
+};
+
+// ─── UPDATE a book ────────────────────────────────────────────────────────────
+
+/**
+ * @param {string} id   - MongoDB ObjectId
+ * @param {object} data - Partial update fields
+ */
+const updateBook = async (id, data) => {
+  assertValidObjectId(id);
+
+  // Reject unknown / protected fields gracefully
+  const allowed = ['title', 'author', 'category', 'price', 'stock', 'description', 'coverImage'];
+  const updateData = {};
+  for (const key of allowed) {
+    if (data[key] !== undefined) updateData[key] = data[key];
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    throw createError('No valid fields provided for update', 400);
+  }
+
+  // Validate price if present
+  if (updateData.price !== undefined && (typeof updateData.price !== 'number' || updateData.price <= 0)) {
+    throw createError('Price must be a number greater than 0', 400);
+  }
+
+  // Validate stock if present
+  if (updateData.stock !== undefined && (typeof updateData.stock !== 'number' || updateData.stock < 0)) {
+    throw createError('Stock must be 0 or greater', 400);
+  }
+
+  const book = await Book.findByIdAndUpdate(
+    id,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  );
+
+  if (!book) throw createError(`Book with ID "${id}" not found`, 404);
+  return book;
+};
+
+// ─── DELETE a book ────────────────────────────────────────────────────────────
+
+/**
+ * @param {string} id - MongoDB ObjectId
+ */
+const deleteBook = async (id) => {
+  assertValidObjectId(id);
+  const book = await Book.findByIdAndDelete(id);
+  if (!book) throw createError(`Book with ID "${id}" not found`, 404);
+  return book;
+};
+
+module.exports = { getBooks, getBookById, getCategories, createBook, updateBook, deleteBook };
