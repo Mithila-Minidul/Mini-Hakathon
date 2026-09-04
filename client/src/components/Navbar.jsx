@@ -1,7 +1,7 @@
 // src/components/Navbar.jsx
 // Top navigation bar — uses AuthContext to show/hide links
 
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ROUTES } from '../utils/constants';
 
@@ -11,22 +11,34 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <Link to={ROUTES.HOME} className="navbar__brand">
-        Mini Hakathon
+        📚 BookLedger
       </Link>
 
       <ul className="navbar__links">
-        {/* Always visible — Books is a public page */}
+        {/* Public — Book Discovery */}
         <li>
-          <Link to={ROUTES.BOOKS}>📚 Books</Link>
+          <NavLink to={ROUTES.BOOKS}>Books</NavLink>
+        </li>
+
+        {/* Admin — Book Management (always visible for demo) */}
+        <li>
+          <NavLink
+            to={ROUTES.ADMIN_BOOKS}
+            style={({ isActive }) =>
+              isActive ? { color: '#6366f1', fontWeight: 700 } : {}
+            }
+          >
+            🛠 Admin
+          </NavLink>
         </li>
 
         {isAuthenticated ? (
           <>
             <li>
-              <Link to={ROUTES.DASHBOARD}>Dashboard</Link>
+              <NavLink to={ROUTES.DASHBOARD}>Dashboard</NavLink>
             </li>
             <li>
-              <Link to={ROUTES.CUSTOMERS}>Customers</Link>
+              <NavLink to={ROUTES.CUSTOMERS}>Customers</NavLink>
             </li>
             <li>
               <button onClick={logout} className="btn btn--ghost">
@@ -37,12 +49,12 @@ const Navbar = () => {
         ) : (
           <>
             <li>
-              <Link to={ROUTES.LOGIN}>Login</Link>
+              <NavLink to={ROUTES.LOGIN}>Login</NavLink>
             </li>
             <li>
-              <Link to={ROUTES.REGISTER} className="btn btn--primary">
+              <NavLink to={ROUTES.REGISTER} className="btn btn--primary">
                 Register
-              </Link>
+              </NavLink>
             </li>
           </>
         )}

@@ -52,7 +52,7 @@ const bookSchema = new mongoose.Schema(
     price: {
       type: Number,
       required: [true, 'Price is required'],
-      min: [0, 'Price cannot be negative'],
+      min: [0.01, 'Price must be greater than 0'],
     },
     stock: {
       type: Number,
@@ -64,46 +64,51 @@ const bookSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
-    isbn: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    publisher: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    publishedYear: {
-      type: Number,
-      min: [100, 'Invalid year'],
-      max: [new Date().getFullYear() + 1, 'Published year cannot be in the future'],
-    },
-    language: {
-      type: String,
-      default: 'English',
-      trim: true,
-    },
-    pages: {
-      type: Number,
-      min: [1, 'Pages must be at least 1'],
+    // Stored field — automatically set by pre-save hook based on stock
+    available: {
+      type: Boolean,
+      default: false,
     },
   },
   {
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    timestamps: true,         // adds createdAt & updatedAt
+    toJSON: { virtuals: false },
+    toObject: { virtuals: false },
   }
 );
 
-// ─── Virtual: availability ─────────────────────────────────────────────────
-bookSchema.virtual('available').get(function () {
-  return this.stock > 0;
+// ─── Pre-save hook: derive `available` from `stock` ──────────────────────────
+bookSchema.pre('save', function (next) {
+  this.available = this.stock > 0;
+  next();
 });
 
-// ─── Indexes ───────────────────────────────────────────────────────────────
+// ─── Pre-findOneAndUpdate hook: keep `available` in sync on updates ──────────
+bookSchema.pre('findOneAndUpdate', function (next) {
+  const update = this.getUpdate();
+
+  // Handle both $set and top-level field updates
+  const stockValue =
+    update && update.$set && update.$set.stock !== undefined
+      ? update.$set.stock
+      : update && update.stock !== undefined
+      ? update.stock
+      : undefined;
+
+  if (stockValue !== undefined) {
+    if (update.$set) {
+      update.$set.available = stockValue > 0;
+    } else {
+      update.available = stockValue > 0;
+    }
+  }
+  next();
+});
+
+// ─── Indexes ─────────────────────────────────────────────────────────────────
 bookSchema.index({ title: 'text', author: 'text' }); // full-text search
 bookSchema.index({ category: 1 });
 bookSchema.index({ price: 1 });
+bookSchema.index({ available: 1 });
 
 module.exports = mongoose.model('Book', bookSchema);

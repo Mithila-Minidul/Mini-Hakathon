@@ -1,19 +1,12 @@
 // src/pages/books/BookDetailPage.jsx
 // Full book detail view — cover, all metadata, description
+// Uses the shared /api/books/:id endpoint (same data as Admin module)
 
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import MainLayout from '../../layouts/MainLayout';
 import { fetchBookById } from '../../services/bookService';
 import '../../components/books/books.css';
-
-const MetaItem = ({ label, value }) =>
-  value ? (
-    <div className="bk-detail__meta-item">
-      <label>{label}</label>
-      <span>{value}</span>
-    </div>
-  ) : null;
 
 const BookDetailPage = () => {
   const { id } = useParams();
@@ -23,10 +16,14 @@ const BookDetailPage = () => {
   const [loading, setLoading]   = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError]       = useState('');
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setNotFound(false);
+      setError('');
+      setImgError(false);
       try {
         const res = await fetchBookById(id);
         setBook(res.data.book);
@@ -90,12 +87,16 @@ const BookDetailPage = () => {
     );
   }
 
+  // ── All fields come from the single shared Book model ──────────────────────
+  // Fields: _id, title, author, category, price, stock, description,
+  //         coverImage, available, createdAt, updatedAt
   const {
-    title, author, category, description, price,
-    stock, coverImage, publisher, publishedYear,
-    language, pages, isbn, available,
+    title, author, category, description,
+    price, stock, coverImage, available,
   } = book;
 
+  // `available` is always stored server-side (stock > 0 → true, stock = 0 → false).
+  // The fallback handles any legacy documents that predate the stored field.
   const isAvailable = available !== undefined ? available : stock > 0;
 
   return (
@@ -114,8 +115,12 @@ const BookDetailPage = () => {
         <div className="bk-detail">
           {/* Cover */}
           <div className="bk-detail__cover">
-            {coverImage ? (
-              <img src={coverImage} alt={`Cover of ${title}`} />
+            {coverImage && !imgError ? (
+              <img
+                src={coverImage}
+                alt={`Cover of ${title}`}
+                onError={() => setImgError(true)}
+              />
             ) : (
               <div className="bk-detail__cover-placeholder" aria-hidden>📖</div>
             )}
@@ -127,14 +132,16 @@ const BookDetailPage = () => {
             <h1 className="bk-detail__title">{title}</h1>
             <p className="bk-detail__author">by <strong>{author}</strong></p>
 
-            {/* Meta grid */}
+            {/* Core meta — uses only fields guaranteed by the Book model */}
             <div className="bk-detail__meta">
-              <MetaItem label="Published"  value={publishedYear} />
-              <MetaItem label="Publisher"  value={publisher} />
-              <MetaItem label="Language"   value={language} />
-              <MetaItem label="Pages"      value={pages} />
-              <MetaItem label="ISBN"       value={isbn} />
-              <MetaItem label="Stock"      value={stock !== undefined ? `${stock} copies` : undefined} />
+              <div className="bk-detail__meta-item">
+                <label>Stock</label>
+                <span>{stock !== undefined ? `${stock} copies` : '—'}</span>
+              </div>
+              <div className="bk-detail__meta-item">
+                <label>Category</label>
+                <span>{category}</span>
+              </div>
             </div>
 
             {/* Price + availability */}
